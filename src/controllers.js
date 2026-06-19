@@ -161,7 +161,7 @@ function readAllNotifs(ctx) {
 
 // --- outbox ----------------------------------------------------------------
 function listOutbox(ctx) {
-  ctx.render('Email Outbox', views.outboxPage({ items: mailer.listOutbox() }));
+  ctx.render('Email Outbox', views.outboxPage({ items: mailer.listOutbox(), live: mailer.isLive() }));
 }
 
 function showMail(ctx) {

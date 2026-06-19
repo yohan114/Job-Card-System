@@ -1,0 +1,8 @@
+{
+  "_comment": "Copy this file to 'mail.config.json' and fill in your details to send real email. For Gmail: enable 2-Step Verification, create an App Password, and paste it as 'pass'. See README -> 'Sending real email through Gmail'. Never commit mail.config.json.",
+  "host": "smtp.gmail.com",
+  "port": 465,
+  "user": "badalgama@gmail.com",
+  "pass": "your-16-char-app-password",
+  "from": "Edward and Christie (Pvt) Ltd <badalgama@gmail.com>"
+}

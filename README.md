@@ -85,6 +85,49 @@ attached printable PDF.
 
 ---
 
+## Sending real email through Gmail
+
+By default the system runs in **simulated** mode — vendor emails are recorded in
+the **Email Outbox** but not actually sent. To send them for real through your
+company Gmail (`badalgama@gmail.com`):
+
+1. **Turn on 2-Step Verification** for the Gmail account:
+   [myaccount.google.com](https://myaccount.google.com) → **Security** →
+   **2-Step Verification** → enable it. (Required — Gmail won't allow app sign-in
+   without it.)
+2. **Create an App Password:** same Security page → **App passwords** → pick
+   *Mail* / *Other (Job Card System)*. Google shows a **16-character password** —
+   copy it (ignore the spaces).
+3. In the project folder, copy `mail.config.example.json` to **`mail.config.json`**
+   and fill it in:
+   ```json
+   {
+     "host": "smtp.gmail.com",
+     "port": 465,
+     "user": "badalgama@gmail.com",
+     "pass": "your16charapppassword",
+     "from": "Edward and Christie (Pvt) Ltd <badalgama@gmail.com>"
+   }
+   ```
+4. Restart the app (`node src/server.js`). The Email Outbox now shows
+   **“Live email is ON”**, and approving an outsourced service request will email
+   the chosen vendor — with the request attached as a printable file — and Cc the
+   internal requesters.
+
+**Good to know**
+- A normal Gmail password will **not** work; you must use an **App Password**
+  (which requires 2-Step Verification).
+- `mail.config.json` holds a secret, so it is git-ignored — never commit it.
+  (Prefer env vars? Set `SMTP_USER`, `SMTP_PASS`, `SMTP_HOST`, `SMTP_PORT`,
+  `SMTP_FROM` instead.)
+- Port **465 (SSL)** is the default; **587 (STARTTLS)** also works.
+- If a send fails (e.g. wrong password), the Outbox marks that email **failed**
+  and shows the error — nothing is lost.
+- Free Gmail has a ~500 recipients/day limit; for more, use Google Workspace or a
+  provider like SendGrid/Mailgun (just change `host`/`port`/`user`/`pass`).
+
+---
+
 ## Project structure
 
 ```
@@ -110,9 +153,9 @@ PROMPT.md            The original product specification / build prompt
 This is a working **v1 / demo**. It is intentionally simple so it runs with zero
 setup. To take it to production:
 
-- **Real email:** mail currently writes to the in-app Outbox. Plug an SMTP
-  client (e.g. `nodemailer`) into `deliver()` in `src/mailer.js` — gate it on
-  `process.env.SMTP_HOST` etc. Everything else stays the same.
+- **Real email:** supported out of the box via a built-in SMTP client — see
+  *"Sending real email through Gmail"* above. With no config it stays in
+  simulated (Outbox-only) mode.
 - **Database:** data is stored in a single JSON file via the thin repository
   layer in `src/db.js`. Swap that layer for PostgreSQL/MySQL without touching the
   services. (The companion `PROMPT.md` describes a fuller React + NestJS +
