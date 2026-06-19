@@ -12,6 +12,7 @@
 const net = require('net');
 const assert = require('assert');
 const mailer = require('../src/mailer');
+const pdf = require('../src/pdf');
 
 let passed = 0;
 const ok = (label) => { console.log(`  ok - ${label}`); passed++; };
@@ -55,11 +56,29 @@ async function main() {
   // 1) Full conversation against the fake server.
   const { server, got, port } = await startFakeServer();
   const cfg = { host: '127.0.0.1', port, user: 'badalgama@gmail.com', pass: 'app-pass-1234', from: 'ENC <badalgama@gmail.com>', secure: false, starttls: false };
+  const pdfBuf = pdf.jobCardPdf({
+    no: 'SR-2026-0001', type: 'OUTSOURCED', vehicleRegNo: 'NP-2210', meter: '13400',
+    projectName: 'Badalgama Plant', repairType: 'Other', details: 'Hydraulic pump overhaul',
+    vendorName: 'DIMO', docServiceBook: true, docRunningChart: true,
+    preparedBy: { name: 'Kasun', designation: 'AME', at: '2026-06-19T00:00:00Z' },
+    reviewedBy: { name: 'Nuwan', designation: 'ME', at: '2026-06-19T00:00:00Z' },
+    approvedBy: { name: 'Amarasekara', designation: 'OM', at: '2026-06-19T00:00:00Z' },
+  });
+  assert.ok(Buffer.isBuffer(pdfBuf), 'jobCardPdf returns a Buffer');
+  assert.strictEqual(pdfBuf.slice(0, 5).toString('latin1'), '%PDF-', 'PDF has %PDF- header');
+  assert.ok(pdfBuf.toString('latin1').trimEnd().endsWith('%%EOF'), 'PDF ends with %%EOF');
+  ok('jobCardPdf produces a valid PDF');
+
   const mime = mailer.buildMime({
     from: cfg.from, to: 'vendor@example.com', cc: ['boss@enc.example'],
     subject: 'Service Request SR-2026-0001', text: 'Line one.\n.dot-leading line\nLast line.',
-    attachments: [{ name: 'SR-0001.html', type: 'text/html', content: '<b>hi</b>' }],
+    attachments: [{ name: 'SR-2026-0001.pdf', type: 'application/pdf', content: pdfBuf }],
   });
+  assert.ok(mime.includes('Content-Type: application/pdf'), 'mime has pdf content-type');
+  assert.ok(mime.includes('filename="SR-2026-0001.pdf"'), 'mime has pdf filename');
+  assert.ok(mime.includes('JVBERi0xLjQ'), 'pdf bytes base64-encoded into the message');
+  ok('PDF attached as a binary base64 part');
+
   await mailer.sendSmtp(cfg, mime, ['vendor@example.com', 'boss@enc.example'], 'badalgama@gmail.com');
   server.close();
 
@@ -72,7 +91,7 @@ async function main() {
   ok('MAIL FROM + multiple RCPT TO');
   assert.ok(got.data.includes('Subject: Service Request SR-2026-0001'), 'subject in DATA');
   assert.ok(got.data.includes('Content-Type: multipart/mixed'), 'multipart attachment built');
-  assert.ok(got.data.includes('filename="SR-0001.html"'), 'attachment filename present');
+  assert.ok(got.data.includes('filename="SR-2026-0001.pdf"'), 'attachment filename present');
   assert.ok(got.data.includes('..dot-leading line'), 'leading-dot line is dot-stuffed');
   ok('DATA body, headers, attachment and dot-stuffing');
 

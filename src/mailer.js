@@ -19,7 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const db = require('./db');
-const views = require('./views');
+const pdf = require('./pdf');
 
 const CONFIG_FILE = path.join(__dirname, '..', 'mail.config.json');
 
@@ -56,7 +56,7 @@ function isLive() {
 
 // --- low-level SMTP helpers ------------------------------------------------
 const b64 = (s) => Buffer.from(s, 'utf8').toString('base64');
-const b64wrap = (s) => Buffer.from(s, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n');
+const b64wrap = (s) => (Buffer.isBuffer(s) ? s : Buffer.from(s, 'utf8')).toString('base64').replace(/(.{76})/g, '$1\r\n');
 const dotStuff = (s) => s.replace(/(^|\r\n)\./g, '$1..');
 
 /** Reads complete SMTP responses (handles multi-line 250-/250 replies). */
@@ -228,11 +228,10 @@ function deliver(msg, { card } = {}) {
 
 /** Email a service request to the vendor, attaching the printable request. */
 function sendVendorRequest(card, vendor, internalCc, baseUrl) {
-  const printUrl = baseUrl ? `${baseUrl}/jobcards/${card.id}/print` : '';
   const text = [
     `Dear ${vendor.companyName},`,
     '',
-    `Please find our service request ${card.no} for the following:`,
+    `Please find attached our service request ${card.no} for the following:`,
     '',
     `  Vehicle / Machinery : ${card.vehicleRegNo || '-'}  (Meter: ${card.meter || '-'})`,
     `  Project / Plant     : ${card.projectName || '-'}`,
@@ -242,15 +241,12 @@ function sendVendorRequest(card, vendor, internalCc, baseUrl) {
     'Required service and repair details:',
     `  ${card.details || '-'}`,
     '',
-    'The full request is attached (open it and use Print → Save as PDF for a PDF copy).',
-    printUrl ? `You can also view it online: ${printUrl}` : null,
-    '',
     `Approved by: ${card.approvedBy ? `${card.approvedBy.name}, ${card.approvedBy.designation}` : '-'}`,
     '',
     'Thank you,',
     'Edward and Christie (Pvt) Ltd',
     '19 km Post, Giriulla Road, Badalgama. Tel: 031 2269966',
-  ].filter((l) => l !== null).join('\n');
+  ].join('\n');
 
   const recipients = [vendor.email, ...internalCc.filter((e) => e && e !== vendor.email)];
   return deliver({
@@ -261,7 +257,7 @@ function sendVendorRequest(card, vendor, internalCc, baseUrl) {
     recipients,
     subject: `Service Request ${card.no} — ${card.vehicleRegNo || 'Vehicle/Machinery'} | Edward and Christie (Pvt) Ltd`,
     body: text,
-    attachments: [{ name: `${card.no || 'request'}-request.html`, type: 'text/html; charset=utf-8', content: views.printForm({ card }) }],
+    attachments: [{ name: `${card.no || 'request'}.pdf`, type: 'application/pdf', content: pdf.jobCardPdf(card) }],
   }, { card });
 }
 
