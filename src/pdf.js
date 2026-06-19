@@ -94,6 +94,9 @@ function jobCardPdf(card, opts = {}) {
   const rect = (x, top, w, h, lw = 0.7) => {
     ops.push(`${lw} w ${x.toFixed(2)} ${(PAGE_H - (top + h)).toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re S`);
   };
+  const fillRect = (x, top, w, h, r, g, b) => {
+    ops.push(`q ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg ${x.toFixed(2)} ${(PAGE_H - (top + h)).toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f Q`);
+  };
 
   const FX = useLH ? 54 : 30;
   const FR = useLH ? 541 : 565;
@@ -141,15 +144,24 @@ function jobCardPdf(card, opts = {}) {
   line(CX, tableTop, CX, tableTop + rows.length * rowH, 0.5);
 
   let y = tableTop + rows.length * rowH + 18;
-  text(FX + 2, y, 'Availability of following documents and records:', { size: 9, bold: true });
-  const docs = [
-    [card.docServiceBook, '1. Service and Repair Details of Vehicle and Machinery Book'],
-    [card.docRunningChart, '2. Running Chart Book'],
-    [card.docLicenseInsurance, '3. Income Revenue License, Insurance Certificate'],
-  ];
-  docs.forEach(([on, label], i) => text(FX + 10, y + 16 + i * 15, `[${on ? 'X' : '  '}]  ${label}`, { size: 9.5 }));
+  if (card.type !== 'OUTSOURCED') {
+    text(FX + 2, y, 'Availability of following documents and records:', { size: 9, bold: true });
+    const docs = [
+      [card.docServiceBook, '1. Service and Repair Details of Vehicle and Machinery Book'],
+      [card.docRunningChart, '2. Running Chart Book'],
+      [card.docLicenseInsurance, '3. Income Revenue License, Insurance Certificate'],
+    ];
+    docs.forEach(([on, label], i) => text(FX + 10, y + 16 + i * 15, `[${on ? 'X' : '  '}]  ${label}`, { size: 9.5 }));
+    y = y + 16 + docs.length * 15 + 10;
+  }
 
-  y = y + 16 + docs.length * 15 + 10;
+  if (card.type === 'OUTSOURCED') {
+    // Highlight the heading text background
+    fillRect(FX + 2, y - 10, 185, 13, 1, 0.95, 0.4);
+    // Highlight the details box background
+    fillRect(FX, y + 6, FR - FX, 76, 1, 0.98, 0.88);
+  }
+
   text(FX + 2, y, 'Required service and repair details:', { size: 9, bold: true });
   rect(FX, y + 6, FR - FX, 76);
   wrap(card.details, 90).slice(0, 5).forEach((ln, i) => text(FX + 8, y + 22 + i * 14, ln, { size: 10 }));

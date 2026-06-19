@@ -248,12 +248,26 @@ function sendVendorRequest(card, vendor, internalCc, baseUrl) {
     '19 km Post, Giriulla Road, Badalgama. Tel: 031 2269966',
   ].join('\n');
 
-  const recipients = [vendor.email, ...internalCc.filter((e) => e && e !== vendor.email)];
+  const ccList = [...internalCc];
+  const extraCc = [
+    'encsrepair@gmail.com',
+    'nuoneccom@gmail.com',
+    'senaratht@gmail.com',
+    'enc.badalgama.om@gmail.com',
+    'swnhsilva@gmail.com',
+    'carawwala@yahoo.com'
+  ];
+  extraCc.forEach((email) => {
+    if (!ccList.includes(email)) {
+      ccList.push(email);
+    }
+  });
+  const recipients = [vendor.email, ...ccList.filter((e) => e && e !== vendor.email)];
   return deliver({
     jobCardId: card.id,
     jobNo: card.no,
     to: vendor.email,
-    cc: internalCc,
+    cc: ccList,
     recipients,
     subject: `Service Request ${card.no} — ${card.vehicleRegNo || 'Vehicle/Machinery'} | Edward and Christie (Pvt) Ltd`,
     body: text,

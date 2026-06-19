@@ -192,7 +192,7 @@ function field(label, name, value, opts = {}) {
 function jobForm({ mode, type, card = {}, projects, vehicles, vendors, internalJobs = [], error }) {
   const isOut = type === 'OUTSOURCED';
   const action = mode === 'edit' ? `/jobcards/${card.id}/update` : '/jobcards';
-  const projOpts = projects.map((p) => `<option value="${p.id}" ${card.projectId === p.id ? 'selected' : ''}>${e(p.name)}</option>`).join('');
+  const projList = projects.map((p) => `<option value="${e(p.name)}"></option>`).join('');
   const vehList = vehicles.map((v) => `<option value="${e(v.regNo)}"></option>`).join('');
   const venOpts = vendors.map((v) => `<option value="${v.id}" ${card.vendorId === v.id ? 'selected' : ''}>${e(v.companyName)}</option>`).join('');
   const jobOpts = internalJobs.map((j) => `<option value="${j.id}" ${card.linkedJobId === j.id ? 'selected' : ''}>${e(`${j.no || '(draft)'} — ${j.vehicleRegNo || '—'} — ${STATUS_LABELS[j.status] || j.status}`)}</option>`).join('');
@@ -230,7 +230,9 @@ function jobForm({ mode, type, card = {}, projects, vehicles, vendors, internalJ
     <input type="hidden" name="type" value="INTERNAL">
     <div class="grid2">
       ${field('Date', 'date', card.date || '', { type: 'date', required: true })}
-      <label class="fld">Project / Plant<select name="projectId"><option value="">— select —</option>${projOpts}</select></label>
+      <label class="fld">Project / Plant <span class="muted small">(type a new one or pick existing)</span>
+        <input name="projectName" list="projlist" value="${e(card.projectName || '')}" placeholder="e.g. Badalgama Plant" required autocomplete="off">
+        <datalist id="projlist">${projList}</datalist></label>
       ${field('Company Code (ENC/…)', 'companyCode', card.companyCode || 'ENC/')}
       <label class="fld">Vehicle Reg. No. <span class="muted small">(type a new one or pick existing)</span>
         <input name="vehicleRegNo" list="vehlist" value="${e(card.vehicleRegNo || '')}" placeholder="e.g. LK-5041" required autocomplete="off">
@@ -341,8 +343,10 @@ function jobDetail({ card, actions, events, vendor, technician }) {
         ${kv('Driver / Operator', e(card.driverName || '—'))}
         ${kv('Contact No.', e(card.contactNo || '—'))}
         ${kv('ECD No.', e(card.ecdNo || '—'))}
-        ${kv('Documents', `<ul class="docs-list">${docs}</ul>`)}
-        ${kv('Service & repair details', nl2br(card.details || '—'))}
+        ${card.type !== 'OUTSOURCED' ? kv('Documents', `<ul class="docs-list">${docs}</ul>`) : ''}
+        ${card.type === 'OUTSOURCED'
+          ? `<div class="kv" style="background-color:#fffde6;border:1px dashed #ffd880;padding:8px;border-radius:6px;margin:8px 0;"><span class="kv-k" style="font-weight:bold;color:#b37d00;">Service & repair details</span><span class="kv-v">${nl2br(card.details || '—')}</span></div>`
+          : kv('Service & repair details', nl2br(card.details || '—'))}
       </section>
       ${workshop}
       ${vendorBlock}
@@ -556,13 +560,14 @@ function printForm({ card }) {
       <tr><td class="label">ECD No.</td><td>${e(card.ecdNo || '')}</td><td class="label">Expected completion</td><td>${fmtDate(card.expectedDate)}</td></tr>
       ${card.type === 'OUTSOURCED' ? `<tr><td class="label">External Company</td><td colspan="3">${e(card.vendorName || '')}</td></tr>` : ''}
     </table>
+    ${card.type !== 'OUTSOURCED' ? `
     <table class="docs">
       <tr><th style="text-align:left">Availability of following documents and records</th><th>Yes</th><th>No</th></tr>
       <tr><td>1. Service and Repair Details of Vehicle and Machinery Book</td>${yn(card.docServiceBook)}</tr>
       <tr><td>2. Running Chart Book</td>${yn(card.docRunningChart)}</tr>
       <tr><td>3. Income Revenue License, Insurance Certificate</td>${yn(card.docLicenseInsurance)}</tr>
-    </table>
-    <table><tr><td class="label">Required service and repair details</td><td>${nl2br(card.details || '')}</td></tr></table>
+    </table>` : ''}
+    <table><tr><td class="label"${card.type === 'OUTSOURCED' ? ' style="background-color:#fff2a8;"' : ''}>Required service and repair details</td><td${card.type === 'OUTSOURCED' ? ' style="background-color:#fffde6;"' : ''}>${nl2br(card.details || '')}</td></tr></table>
     <table class="sgnrow">
       <tr><th>Prepared By</th><th>Reviewed By</th><th>Approved By</th></tr>
       <tr><td>${sigCell(card.preparedBy)}</td><td>${sigCell(card.reviewedBy)}</td><td>${sigCell(card.approvedBy)}</td></tr>

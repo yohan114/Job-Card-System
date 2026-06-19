@@ -34,6 +34,29 @@ function vendorName(id) {
   return v ? v.companyName : '';
 }
 
+// Find an existing project by name, or create one on the fly (typeable).
+function resolveProject(form) {
+  if (form.projectId) {
+    const p = db.find('projects', form.projectId);
+    if (p) return { projectId: p.id, projectName: p.name };
+  }
+  const typed = (form.projectName || '').trim();
+  if (!typed) return { projectId: null, projectName: '' };
+  let p = db.all('projects').find((x) => x.name.toLowerCase() === typed.toLowerCase());
+  if (!p) {
+    // Generate a default code from the typed name
+    const words = typed.split(/\s+/).filter(Boolean);
+    let code = '';
+    if (words.length >= 2) {
+      code = words.map(w => w[0]).join('').toUpperCase();
+    } else {
+      code = typed.slice(0, 3).toUpperCase();
+    }
+    p = db.insert('projects', { name: typed, code });
+  }
+  return { projectId: p.id, projectName: p.name };
+}
+
 // Find an existing vehicle by reg number, or create one on the fly (typeable).
 function resolveVehicle(form) {
   if (form.vehicleId) {
@@ -51,10 +74,11 @@ function resolveVehicle(form) {
 
 // Fields the preparer may set on create / while in DRAFT.
 function readForm(form, type) {
+  const proj = resolveProject(form);
   const base = {
     date: form.date || today(),
-    projectId: form.projectId || null,
-    projectName: projectName(form.projectId) || form.projectName || '',
+    projectId: proj.projectId,
+    projectName: proj.projectName,
     companyCode: form.companyCode || '',
     vehicleId: null,
     vehicleRegNo: '',

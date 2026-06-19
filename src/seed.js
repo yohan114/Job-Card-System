@@ -29,13 +29,7 @@ function seed() {
   ];
 
   const people = [
-    { id: 'usr_admin', username: 'admin', name: 'System Administrator', designation: 'Administrator', email: 'admin@enc.example', roles: [ROLES.ADMIN] },
-    { id: 'usr_to', username: 'tofficer', name: 'Chanuva Bandara', designation: 'Transport Officer', email: 'transport.officer@enc.example', roles: [ROLES.TRANSPORT_OFFICER] },
-    { id: 'usr_tm', username: 'tmanager', name: 'Ruwan Silva', designation: 'Transport Manager', email: 'transport.manager@enc.example', roles: [ROLES.TRANSPORT_MANAGER] },
-    { id: 'usr_ame', username: 'ame', name: 'Kasun Perera', designation: 'Assistant Mechanical Engineer', email: 'asst.engineer@enc.example', roles: [ROLES.ASST_MECH_ENGINEER] },
-    { id: 'usr_me', username: 'me', name: 'Nuwan Fernando', designation: 'Mechanical Engineer', email: 'mech.engineer@enc.example', roles: [ROLES.MECH_ENGINEER] },
-    { id: 'usr_om', username: 'omanager', name: 'A. N. Amarasekara', designation: 'Operational Manager', email: 'ops.manager@enc.example', roles: [ROLES.OPERATIONAL_MANAGER] },
-    { id: 'usr_tech', username: 'tech', name: 'Sunil Jayaweera', designation: 'Workshop Technician', email: 'workshop@enc.example', roles: [ROLES.TECHNICIAN] },
+    { id: 'usr_admin', username: 'admin', name: 'System Administrator', designation: 'Administrator', email: '', roles: [ROLES.ADMIN] },
   ];
 
   projects.forEach((p) => db.insert('projects', p));
