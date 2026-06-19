@@ -28,12 +28,14 @@ runs anywhere Node is installed — no `npm install`, no database to set up.
 ### Workflow 2 — Outsourced / service-requested job
 `Asst. Mechanical Engineer → Mechanical Engineer → Operational Manager → Vendor`
 
-1. **Assistant Mechanical Engineer** prepares the request and selects the
-   external company/vendor.
+1. **Assistant Mechanical Engineer** selects an existing **internal job that is
+   not closed** (the request is raised against it — the vehicle and job details
+   are copied from it) and chooses the external company/vendor.
 2. **Mechanical Engineer** reviews (or returns it).
 3. **Operational Manager** approves → the system **automatically emails the
-   selected vendor** the request (with the PDF copy attached) and copies the
-   internal requesters. A number like `SR-2026-0001` is assigned.
+   selected vendor** the request (with a **PDF on the company letterhead**
+   attached) and copies the internal requesters. A number like `SR-2026-0001`
+   is assigned.
 4. Progress is tracked until the request is completed and closed.
 
 ### Throughout
@@ -78,10 +80,29 @@ open the job → **Start Job**, then **End / Complete Job**. The managers now ge
 notification to review.
 
 ### Try the outsourced flow
-Log in as `ame` → **New Service Request** → pick a vendor → create → **Submit**.
-Log in as `me` → **Approve Review**. Log in as `omanager` → **Approve & Email
-Vendor**. Check **Email Outbox** to see the generated vendor email and open the
-attached printable PDF.
+Log in as `ame` → **New Service Request** → choose an **open internal job** and a
+vendor → create → **Submit**. Log in as `me` → **Approve Review**. Log in as
+`omanager` → **Approve & Email Vendor**. Check **Email Outbox** to see the
+generated vendor email and the attached letterhead PDF.
+
+## User accounts & temporary passwords
+The **Administrator** manages logins under **Admin → Users**:
+- **Add a user** with a username, role and a **temporary password**, then give
+  that password to the person.
+- **Reset password** sets a new temporary password for any user.
+
+Anyone signed in with a temporary password is **forced to set their own
+password** before they can use the system. Everyone can change their own
+password anytime via the **Change password** link in the top bar. (Demo seeded
+accounts above start with `password` and are not flagged temporary.)
+
+## Other notes
+- **Vehicle numbers are typeable.** On the internal job form, type a registration
+  number or pick an existing one; a new number is added to the vehicle list
+  automatically.
+- **Company letterhead.** The vendor service-request PDF is rendered on the
+  letterhead at `assets/letterhead.jpg`. Replace that file (A4, ideally
+  300 DPI) to change the letterhead; delete it to fall back to a plain header.
 
 ---
 

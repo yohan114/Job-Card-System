@@ -64,6 +64,7 @@ function masterData() {
     projects: db.all('projects'),
     vehicles: db.all('vehicles'),
     vendors: db.all('vendors'),
+    internalJobs: jobs.eligibleForOutsourcing(),
   };
 }
 
@@ -76,9 +77,14 @@ function newJob(ctx) {
 function createJob(ctx) {
   const type = (ctx.body.type || '').toUpperCase() === TYPES.OUTSOURCED ? TYPES.OUTSOURCED : TYPES.INTERNAL;
   if (!domain.canCreate(ctx.user, type)) return ctx.forbidden('You are not allowed to create this type of job.');
-  if (type === TYPES.OUTSOURCED && !ctx.body.vendorId) {
-    ctx.flash('error', 'Please select an external company/vendor.');
-    return ctx.render('New Job', views.jobForm({ mode: 'new', type, error: 'Please select an external company/vendor.', card: ctx.body, ...masterData() }));
+  if (type === TYPES.OUTSOURCED) {
+    let err = null;
+    if (!ctx.body.linkedJobId) err = 'Please select the internal job this service request relates to.';
+    else if (!ctx.body.vendorId) err = 'Please select an external company/vendor.';
+    if (err) {
+      ctx.flash('error', err);
+      return ctx.render('New Job', views.jobForm({ mode: 'new', type, error: err, card: ctx.body, ...masterData() }));
+    }
   }
   const card = jobs.createJobCard(ctx.user, type, ctx.body);
   ctx.flash('success', 'Job card created as draft. Submit it for review when ready.');
@@ -190,6 +196,25 @@ function reports(ctx) {
   }));
 }
 
+// --- account / password ----------------------------------------------------
+function showChangePassword(ctx) {
+  ctx.render('Change Password', views.changePasswordPage({ mustChange: !!ctx.user.mustChangePassword }));
+}
+
+function changePassword(ctx) {
+  const { current, next, confirm } = ctx.body;
+  const u = ctx.user;
+  let err = null;
+  if (!auth.verifyPassword(current || '', u.password)) err = 'Your current password is incorrect.';
+  else if (!next || next.length < 6) err = 'New password must be at least 6 characters.';
+  else if (next !== confirm) err = 'New password and confirmation do not match.';
+  else if (next === current) err = 'New password must be different from the current one.';
+  if (err) { ctx.flash('error', err); return ctx.redirect('/account/password'); }
+  db.update('users', u.id, { password: auth.hashPassword(next), mustChangePassword: false });
+  ctx.flash('success', 'Your password has been updated.');
+  ctx.redirect('/');
+}
+
 // --- admin -----------------------------------------------------------------
 function adminHome(ctx) {
   ctx.render('Admin', views.adminPage({
@@ -197,7 +222,41 @@ function adminHome(ctx) {
     vehicles: db.all('vehicles'),
     vendors: db.all('vendors'),
     projects: db.all('projects'),
+    roles: Object.values(domain.ROLES).map((v) => ({ value: v, label: domain.ROLE_LABELS[v] || v })),
   }));
+}
+
+function addUser(ctx) {
+  const { username, name, designation, email, role, password } = ctx.body;
+  if (!username || !password) { ctx.flash('error', 'Username and temporary password are required.'); return ctx.redirect('/admin'); }
+  if (password.length < 6) { ctx.flash('error', 'Temporary password must be at least 6 characters.'); return ctx.redirect('/admin'); }
+  if (db.where('users', (u) => u.username.toLowerCase() === username.toLowerCase()).length) {
+    ctx.flash('error', `Username "${username}" already exists.`);
+    return ctx.redirect('/admin');
+  }
+  db.insert('users', {
+    username,
+    name: name || username,
+    designation: designation || '',
+    email: email || '',
+    roles: role ? [role] : [],
+    password: auth.hashPassword(password),
+    active: true,
+    mustChangePassword: true,
+    createdAt: new Date().toISOString(),
+  });
+  ctx.flash('success', `User "${username}" created. They must change the temporary password at first login.`);
+  ctx.redirect('/admin');
+}
+
+function resetPassword(ctx) {
+  const u = db.find('users', ctx.params.id);
+  if (!u) return ctx.notFound();
+  const pw = ctx.body.password || '';
+  if (pw.length < 6) { ctx.flash('error', 'Temporary password must be at least 6 characters.'); return ctx.redirect('/admin'); }
+  db.update('users', u.id, { password: auth.hashPassword(pw), mustChangePassword: true });
+  ctx.flash('success', `Password reset for "${u.username}". They must change it at next login.`);
+  ctx.redirect('/admin');
 }
 
 function addVehicle(ctx) {
@@ -226,5 +285,6 @@ module.exports = {
   listNotifs, readAllNotifs,
   listOutbox, showMail,
   reports,
-  adminHome, addVehicle, addVendor, addProject,
+  showChangePassword, changePassword,
+  adminHome, addUser, resetPassword, addVehicle, addVendor, addProject,
 };

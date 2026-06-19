@@ -40,7 +40,10 @@ const R = domain.ROLES;
 const routes = [
   ['GET', '/login', c.showLogin, { public: true }],
   ['POST', '/login', c.login, { public: true }],
-  ['POST', '/logout', c.logout],
+  ['POST', '/logout', c.logout, { allowMustChange: true }],
+
+  ['GET', '/account/password', c.showChangePassword, { allowMustChange: true }],
+  ['POST', '/account/password', c.changePassword, { allowMustChange: true }],
 
   ['GET', '/', c.home],
   ['GET', '/jobcards', c.listJobs],
@@ -63,6 +66,8 @@ const routes = [
   ['GET', '/reports', c.reports, { guard: requireRoles([R.TRANSPORT_MANAGER, R.MECH_ENGINEER, R.OPERATIONAL_MANAGER, R.ADMIN]) }],
 
   ['GET', '/admin', c.adminHome, { guard: requireRoles([R.ADMIN]) }],
+  ['POST', '/admin/users', c.addUser, { guard: requireRoles([R.ADMIN]) }],
+  ['POST', '/admin/users/:id/reset-password', c.resetPassword, { guard: requireRoles([R.ADMIN]) }],
   ['POST', '/admin/vehicles', c.addVehicle, { guard: requireRoles([R.ADMIN]) }],
   ['POST', '/admin/vendors', c.addVendor, { guard: requireRoles([R.ADMIN]) }],
   ['POST', '/admin/projects', c.addProject, { guard: requireRoles([R.ADMIN]) }],
@@ -150,6 +155,10 @@ const server = http.createServer(async (req, res) => {
       const ctx = buildCtx(req, res, params, query, body, user);
 
       if (!route.opts.public && !user) return ctx.redirect('/login');
+      // Force users on a temporary password to set a new one before anything else.
+      if (user && user.mustChangePassword && !route.opts.allowMustChange && !route.opts.public) {
+        return ctx.redirect('/account/password');
+      }
       if (route.opts.guard && !route.opts.guard(ctx)) return ctx.forbidden();
       return await route.handler(ctx);
     }

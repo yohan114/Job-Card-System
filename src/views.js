@@ -84,6 +84,7 @@ function layout({ title, user, body, flash, unread = 0 }) {
     <div class="usermenu">
       <a class="bell" href="/notifications" title="Notifications">🔔${unread ? `<span class="bell-count">${unread}</span>` : ''}</a>
       <span class="who">${e(user.name)}<br><span class="muted small">${e(roleNames)}</span></span>
+      <a class="btn btn-ghost btn-sm" href="/account/password">Change password</a>
       <form method="post" action="/logout"><button class="btn btn-ghost btn-sm">Logout</button></form>
     </div>
   </header>` : ''}
@@ -188,33 +189,58 @@ function field(label, name, value, opts = {}) {
   return `<label class="fld">${e(label)}<input type="${type}" name="${name}" value="${e(value)}" ${req}></label>`;
 }
 
-function jobForm({ mode, type, card = {}, projects, vehicles, vendors, error }) {
+function jobForm({ mode, type, card = {}, projects, vehicles, vendors, internalJobs = [], error }) {
   const isOut = type === 'OUTSOURCED';
   const action = mode === 'edit' ? `/jobcards/${card.id}/update` : '/jobcards';
-  const sel = (cur) => (v) => `<option value="${v.id}" ${cur === v.id ? 'selected' : ''}>`;
   const projOpts = projects.map((p) => `<option value="${p.id}" ${card.projectId === p.id ? 'selected' : ''}>${e(p.name)}</option>`).join('');
-  const vehOpts = vehicles.map((v) => `<option value="${v.id}" ${card.vehicleId === v.id ? 'selected' : ''}>${e(v.regNo)} — ${e(v.type)}</option>`).join('');
+  const vehList = vehicles.map((v) => `<option value="${e(v.regNo)}"></option>`).join('');
   const venOpts = vendors.map((v) => `<option value="${v.id}" ${card.vendorId === v.id ? 'selected' : ''}>${e(v.companyName)}</option>`).join('');
+  const jobOpts = internalJobs.map((j) => `<option value="${j.id}" ${card.linkedJobId === j.id ? 'selected' : ''}>${e(`${j.no || '(draft)'} — ${j.vehicleRegNo || '—'} — ${STATUS_LABELS[j.status] || j.status}`)}</option>`).join('');
   const repairOpt = (v) => `<option value="${v}" ${card.repairType === v ? 'selected' : ''}>${v}</option>`;
   const chk = (val) => (val ? 'checked' : '');
 
-  return `<div class="page-head"><h1>${mode === 'edit' ? 'Edit' : 'New'} ${e(TYPE_LABELS[type])}</h1>
+  const head = `<div class="page-head"><h1>${mode === 'edit' ? 'Edit' : 'New'} ${e(TYPE_LABELS[type])}</h1>
     <p class="muted">Request for Repairing and Service of Vehicle and Machinery</p></div>
-  ${error ? `<div class="flash flash-error">${e(error)}</div>` : ''}
+  ${error ? `<div class="flash flash-error">${e(error)}</div>` : ''}`;
+
+  if (isOut) {
+    return `${head}
+    <form method="post" action="${action}" class="cardform panel">
+      <input type="hidden" name="type" value="OUTSOURCED">
+      <label class="fld">Internal job to outsource <span class="muted small">(open jobs only — not closed)</span>
+        <select name="linkedJobId" required><option value="">— select an internal job —</option>${jobOpts}</select></label>
+      <label class="fld">External company / vendor to send the request to
+        <select name="vendorId" required><option value="">— select —</option>${venOpts}</select></label>
+      <div class="grid2">
+        ${field('Date', 'date', card.date || '', { type: 'date', required: true })}
+        ${field('Expected completion date', 'expectedDate', card.expectedDate || '', { type: 'date' })}
+      </div>
+      <label class="fld">Service / repair work required from the vendor
+        <textarea name="details" rows="4" placeholder="Describe the work the external company must carry out">${e(card.details || '')}</textarea></label>
+      <p class="muted small">The vehicle and job details are copied from the selected internal job. On approval the request is emailed to the vendor with a PDF.</p>
+      <div class="formactions">
+        <button class="btn btn-primary" type="submit">${mode === 'edit' ? 'Save changes' : 'Create service request'}</button>
+        <a class="btn btn-ghost" href="/jobcards">Cancel</a>
+      </div>
+    </form>`;
+  }
+
+  return `${head}
   <form method="post" action="${action}" class="cardform panel">
-    <input type="hidden" name="type" value="${type}">
+    <input type="hidden" name="type" value="INTERNAL">
     <div class="grid2">
       ${field('Date', 'date', card.date || '', { type: 'date', required: true })}
       <label class="fld">Project / Plant<select name="projectId"><option value="">— select —</option>${projOpts}</select></label>
       ${field('Company Code (ENC/…)', 'companyCode', card.companyCode || 'ENC/')}
-      <label class="fld">Vehicle Reg. No.<select name="vehicleId"><option value="">— select —</option>${vehOpts}</select></label>
+      <label class="fld">Vehicle Reg. No. <span class="muted small">(type a new one or pick existing)</span>
+        <input name="vehicleRegNo" list="vehlist" value="${e(card.vehicleRegNo || '')}" placeholder="e.g. LK-5041" required autocomplete="off">
+        <datalist id="vehlist">${vehList}</datalist></label>
       ${field('Vehicle / Machinery Meter', 'meter', card.meter || '', { type: 'number' })}
       <label class="fld">Repair type<select name="repairType"><option value="">— select —</option>${repairOpt('Accident')}${repairOpt('Running')}${repairOpt('Other')}</select></label>
       ${field('Expected completion date', 'expectedDate', card.expectedDate || '', { type: 'date' })}
       ${field('Driver / Operator name', 'driverName', card.driverName || '')}
       ${field('Contact No.', 'contactNo', card.contactNo || '')}
       ${field('ECD No.', 'ecdNo', card.ecdNo || '')}
-      ${isOut ? `<label class="fld">External Company / Vendor<select name="vendorId" required><option value="">— select —</option>${venOpts}</select></label>` : ''}
     </div>
     <fieldset class="docs">
       <legend>Availability of documents and records</legend>
@@ -284,6 +310,7 @@ function jobDetail({ card, actions, events, vendor, technician }) {
         ${kv('Company', e(card.vendorName || '—'))}
         ${kv('Email', vendor ? e(vendor.email) : '—')}
         ${kv('Contact', vendor ? e(vendor.contactNo) : '—')}
+        ${card.linkedJobId ? kv('Linked internal job', `<a href="/jobcards/${card.linkedJobId}">${e(card.linkedJobNo || 'view job')}</a>`) : ''}
         ${kv('Email sent', card.emailSentAt ? fmtDateTime(card.emailSentAt) : '<span class="muted">not yet</span>')}
       </section>`
     : '';
@@ -416,15 +443,48 @@ function reportsPage({ stats }) {
   </section>`;
 }
 
+// --- change password -------------------------------------------------------
+function changePasswordPage({ mustChange }) {
+  return `<div class="page-head"><h1>Change Password</h1></div>
+  ${mustChange ? `<div class="flash flash-error">🔑 You are signed in with a <strong>temporary password</strong>. Please set your own password to continue.</div>` : ''}
+  <form method="post" action="/account/password" class="panel cardform" style="max-width:460px">
+    <label class="fld">Current password<input type="password" name="current" required></label>
+    <label class="fld">New password<input type="password" name="next" required minlength="6"></label>
+    <label class="fld">Confirm new password<input type="password" name="confirm" required minlength="6"></label>
+    <p class="muted small">Use at least 6 characters.</p>
+    <div class="formactions"><button class="btn btn-primary" type="submit">Update password</button></div>
+  </form>`;
+}
+
 // --- admin -----------------------------------------------------------------
-function adminPage({ users, vehicles, vendors, projects }) {
-  const userRows = users.map((u) => `<tr><td>${e(u.username)}</td><td>${e(u.name)}</td><td>${e(u.roles.map((r) => ROLE_LABELS[r] || r).join(', '))}</td><td>${u.active ? 'Active' : 'Disabled'}</td></tr>`).join('');
+function adminPage({ users, vehicles, vendors, projects, roles }) {
+  const roleOptions = roles.map((r) => `<option value="${e(r.value)}">${e(r.label)}</option>`).join('');
+  const userRows = users.map((u) => `<tr>
+      <td>${e(u.username)}</td><td>${e(u.name)}</td>
+      <td>${e(u.roles.map((r) => ROLE_LABELS[r] || r).join(', '))}</td>
+      <td>${u.active ? 'Active' : 'Disabled'}${u.mustChangePassword ? ' · <span class="badge tone-amber">temp pw</span>' : ''}</td>
+      <td><form class="inline-form" method="post" action="/admin/users/${u.id}/reset-password">
+        <input type="password" name="password" placeholder="new temp password" required minlength="6">
+        <button class="btn btn-ghost btn-sm" type="submit">Reset</button>
+      </form></td>
+    </tr>`).join('');
   const vehRows = vehicles.map((v) => `<tr><td>${e(v.regNo)}</td><td>${e(v.type)}</td><td>${e(v.ecdNo || '')}</td><td>${e(v.currentMeter || '')}</td></tr>`).join('');
   const venRows = vendors.map((v) => `<tr><td>${e(v.companyName)}</td><td>${e(v.email)}</td><td>${e(v.contactNo || '')}</td></tr>`).join('');
   const prjRows = projects.map((p) => `<tr><td>${e(p.name)}</td><td>${e(p.code || '')}</td></tr>`).join('');
   return `<div class="page-head"><h1>Administration</h1></div>
   <section class="panel"><h2>Users</h2>
-    <table class="table"><thead><tr><th>Username</th><th>Name</th><th>Roles</th><th>Status</th></tr></thead><tbody>${userRows}</tbody></table>
+    <table class="table"><thead><tr><th>Username</th><th>Name</th><th>Roles</th><th>Status</th><th>Reset password</th></tr></thead><tbody>${userRows}</tbody></table>
+    <h3 style="font-size:14px;margin-top:14px">Add a user (with a temporary password)</h3>
+    <form class="inline-form" method="post" action="/admin/users">
+      <input name="username" placeholder="Username" required>
+      <input name="name" placeholder="Full name">
+      <input name="designation" placeholder="Designation">
+      <input name="email" type="email" placeholder="Email">
+      <select name="role">${roleOptions}</select>
+      <input type="password" name="password" placeholder="Temporary password" required minlength="6">
+      <button class="btn btn-secondary btn-sm" type="submit">Add user</button>
+    </form>
+    <p class="muted small">New users (and reset accounts) must change the temporary password the first time they sign in.</p>
   </section>
   <section class="panel"><h2>Vehicles / Machinery</h2>
     <table class="table"><thead><tr><th>Reg No.</th><th>Type</th><th>ECD No.</th><th>Meter</th></tr></thead><tbody>${vehRows}</tbody></table>
@@ -526,5 +586,6 @@ module.exports = {
   outboxDetail,
   reportsPage,
   adminPage,
+  changePasswordPage,
   printForm,
 };

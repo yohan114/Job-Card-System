@@ -34,15 +34,30 @@ function vendorName(id) {
   return v ? v.companyName : '';
 }
 
+// Find an existing vehicle by reg number, or create one on the fly (typeable).
+function resolveVehicle(form) {
+  if (form.vehicleId) {
+    const v = db.find('vehicles', form.vehicleId);
+    if (v) return { vehicleId: v.id, vehicleRegNo: v.regNo };
+  }
+  const typed = (form.vehicleRegNo || '').trim();
+  if (!typed) return { vehicleId: null, vehicleRegNo: '' };
+  let v = db.all('vehicles').find((x) => x.regNo.toLowerCase() === typed.toLowerCase());
+  if (!v) {
+    v = db.insert('vehicles', { regNo: typed, type: form.vehicleType || '', projectId: form.projectId || null, ecdNo: form.ecdNo || '', currentMeter: Number(form.meter) || 0 });
+  }
+  return { vehicleId: v.id, vehicleRegNo: v.regNo };
+}
+
 // Fields the preparer may set on create / while in DRAFT.
 function readForm(form, type) {
-  return {
+  const base = {
     date: form.date || today(),
     projectId: form.projectId || null,
     projectName: projectName(form.projectId) || form.projectName || '',
     companyCode: form.companyCode || '',
-    vehicleId: form.vehicleId || null,
-    vehicleRegNo: vehicleReg(form.vehicleId) || form.vehicleRegNo || '',
+    vehicleId: null,
+    vehicleRegNo: '',
     meter: form.meter || '',
     repairType: form.repairType || '',
     repairTypeNote: form.repairTypeNote || '',
@@ -54,9 +69,38 @@ function readForm(form, type) {
     docRunningChart: form.docRunningChart === 'on' || form.docRunningChart === true,
     docLicenseInsurance: form.docLicenseInsurance === 'on' || form.docLicenseInsurance === true,
     details: form.details || '',
-    vendorId: type === TYPES.OUTSOURCED ? form.vendorId || null : null,
-    vendorName: type === TYPES.OUTSOURCED ? vendorName(form.vendorId) : '',
+    vendorId: null,
+    vendorName: '',
+    linkedJobId: null,
+    linkedJobNo: null,
   };
+
+  if (type === TYPES.OUTSOURCED) {
+    // An outside request is raised against an existing (non-closed) internal job;
+    // the vehicle and job context are copied from it.
+    base.vendorId = form.vendorId || null;
+    base.vendorName = vendorName(form.vendorId);
+    const linked = form.linkedJobId ? db.find('jobcards', form.linkedJobId) : null;
+    if (linked) {
+      base.linkedJobId = linked.id;
+      base.linkedJobNo = linked.no || null;
+      base.vehicleId = linked.vehicleId;
+      base.vehicleRegNo = linked.vehicleRegNo;
+      base.projectId = base.projectId || linked.projectId;
+      base.projectName = base.projectName || linked.projectName;
+      base.meter = base.meter || linked.meter;
+      base.repairType = base.repairType || linked.repairType;
+      base.driverName = base.driverName || linked.driverName;
+      base.contactNo = base.contactNo || linked.contactNo;
+      base.ecdNo = base.ecdNo || linked.ecdNo;
+      base.companyCode = base.companyCode || linked.companyCode;
+    }
+  } else {
+    const veh = resolveVehicle(form);
+    base.vehicleId = veh.vehicleId;
+    base.vehicleRegNo = veh.vehicleRegNo;
+  }
+  return base;
 }
 
 function createJobCard(user, type, form) {
@@ -242,6 +286,11 @@ function myQueue(user) {
   return list().filter((card) => domain.availableActions(card, user).some((a) => a.tone === 'primary'));
 }
 
+/** Internal jobs that may be outsourced: already requested and not yet closed. */
+function eligibleForOutsourcing() {
+  return list({ type: TYPES.INTERNAL }).filter((j) => j.status !== STATUS.DRAFT && j.status !== STATUS.CLOSED);
+}
+
 module.exports = {
   createJobCard,
   updateJobCard,
@@ -250,5 +299,6 @@ module.exports = {
   get,
   list,
   myQueue,
+  eligibleForOutsourcing,
   today,
 };
