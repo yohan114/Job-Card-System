@@ -112,25 +112,21 @@ const TRANSITIONS = {
   },
   OUTSOURCED: {
     DRAFT: [
-      { action: 'submit', label: 'Submit for Review', to: STATUS.PENDING_REVIEW, roles: [R.ASST_MECH_ENGINEER, R.ADMIN], effect: 'submit', tone: 'primary' },
-    ],
-    PENDING_REVIEW: [
-      { action: 'review', label: 'Approve Review', to: STATUS.PENDING_APPROVAL, roles: [R.MECH_ENGINEER, R.ADMIN], effect: 'review', tone: 'primary' },
-      { action: 'return', label: 'Return for Revision', to: STATUS.DRAFT, roles: [R.MECH_ENGINEER, R.ADMIN], note: 'required', tone: 'danger' },
+      { action: 'submit', label: 'Submit for Approval', to: STATUS.PENDING_APPROVAL, roles: [R.ASST_MECH_ENGINEER, R.ADMIN], effect: 'submit', tone: 'primary' },
     ],
     PENDING_APPROVAL: [
-      { action: 'approve', label: 'Approve & Email Vendor', to: STATUS.SENT_TO_VENDOR, roles: [R.OPERATIONAL_MANAGER, R.ADMIN], effect: 'approveOutsourced', tone: 'primary' },
-      { action: 'return', label: 'Return for Revision', to: STATUS.DRAFT, roles: [R.OPERATIONAL_MANAGER, R.ADMIN], note: 'required', tone: 'danger' },
+      { action: 'approve', label: 'Approve & Email Vendor', to: STATUS.SENT_TO_VENDOR, roles: [R.MECH_ENGINEER, R.ADMIN], effect: 'approveOutsourced', tone: 'primary' },
+      { action: 'return', label: 'Return for Revision', to: STATUS.DRAFT, roles: [R.MECH_ENGINEER, R.ADMIN], note: 'required', tone: 'danger' },
     ],
     SENT_TO_VENDOR: [
-      { action: 'start', label: 'Mark In Progress', to: STATUS.IN_PROGRESS, roles: [R.ASST_MECH_ENGINEER, R.MECH_ENGINEER, R.OPERATIONAL_MANAGER, R.ADMIN], tone: 'primary' },
-      { action: 'resend', label: 'Resend Email to Vendor', to: STATUS.SENT_TO_VENDOR, roles: [R.ASST_MECH_ENGINEER, R.MECH_ENGINEER, R.OPERATIONAL_MANAGER, R.ADMIN], effect: 'resendEmail', tone: 'secondary' },
+      { action: 'start', label: 'Mark In Progress', to: STATUS.IN_PROGRESS, roles: [R.ASST_MECH_ENGINEER, R.MECH_ENGINEER, R.ADMIN], tone: 'primary' },
+      { action: 'resend', label: 'Resend Email to Vendor', to: STATUS.SENT_TO_VENDOR, roles: [R.ASST_MECH_ENGINEER, R.MECH_ENGINEER, R.ADMIN], effect: 'resendEmail', tone: 'secondary' },
     ],
     IN_PROGRESS: [
-      { action: 'complete', label: 'Mark Completed', to: STATUS.COMPLETED, roles: [R.ASST_MECH_ENGINEER, R.MECH_ENGINEER, R.OPERATIONAL_MANAGER, R.ADMIN], effect: 'completeOutsourced', tone: 'primary' },
+      { action: 'complete', label: 'Mark Completed', to: STATUS.COMPLETED, roles: [R.ASST_MECH_ENGINEER, R.MECH_ENGINEER, R.ADMIN], effect: 'completeOutsourced', tone: 'primary' },
     ],
     COMPLETED: [
-      { action: 'close', label: 'Review & Close', to: STATUS.CLOSED, roles: [R.ASST_MECH_ENGINEER, R.MECH_ENGINEER, R.OPERATIONAL_MANAGER, R.ADMIN], note: 'optional', tone: 'primary' },
+      { action: 'close', label: 'Review & Close', to: STATUS.CLOSED, roles: [R.ASST_MECH_ENGINEER, R.MECH_ENGINEER, R.ADMIN], note: 'optional', tone: 'primary' },
     ],
     CLOSED: [],
   },

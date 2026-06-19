@@ -26,17 +26,17 @@ runs anywhere Node is installed — no `npm install`, no database to set up.
    Manager are notified** to review and close the job.
 
 ### Workflow 2 — Outsourced / service-requested job
-`Asst. Mechanical Engineer → Mechanical Engineer → Operational Manager → Vendor`
+`Asst. Mechanical Engineer → Mechanical Engineer → Vendor`
 
 1. **Assistant Mechanical Engineer** selects an existing **internal job that is
    not closed** (the request is raised against it — the vehicle and job details
-   are copied from it) and chooses the external company/vendor.
-2. **Mechanical Engineer** reviews (or returns it).
-3. **Operational Manager** approves → the system **automatically emails the
-   selected vendor** the request (with a **PDF on the company letterhead**
-   attached) and copies the internal requesters. A number like `SR-2026-0001`
-   is assigned.
-4. Progress is tracked until the request is completed and closed.
+   are copied from it), chooses the external company/vendor, and submits.
+2. **Mechanical Engineer** approves (or returns it) → the system **automatically
+   emails the selected vendor** the request (with a **PDF on the company
+   letterhead** attached) and copies the internal requesters. A number like
+   `SR-2026-0001` is assigned. *(No Operational Manager approval is needed for
+   outsourced requests.)*
+3. Progress is tracked until the request is completed and closed.
 
 ### Throughout
 - **Role-based access control** — every action is checked on the server.
@@ -81,9 +81,9 @@ notification to review.
 
 ### Try the outsourced flow
 Log in as `ame` → **New Service Request** → choose an **open internal job** and a
-vendor → create → **Submit**. Log in as `me` → **Approve Review**. Log in as
-`omanager` → **Approve & Email Vendor**. Check **Email Outbox** to see the
-generated vendor email and the attached letterhead PDF.
+vendor → create → **Submit**. Log in as `me` → **Approve & Email Vendor**. Check
+**Email Outbox** to see the generated vendor email and the attached letterhead
+PDF. *(No Operational Manager step for outsourced requests.)*
 
 ## User accounts & temporary passwords
 The **Administrator** manages logins under **Admin → Users**:

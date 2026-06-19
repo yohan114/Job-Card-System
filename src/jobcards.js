@@ -233,8 +233,11 @@ function postEffects(actionName, def, card, user, payload) {
 
   switch (def.effect) {
     case 'submit': {
-      const reviewers = isInternal ? [ROLES.TRANSPORT_MANAGER] : [ROLES.MECH_ENGINEER];
-      notify.notifyRoles(reviewers, card, `${user.name} submitted ${card.type === TYPES.INTERNAL ? 'job card' : 'service request'} for your review.`);
+      if (isInternal) {
+        notify.notifyRoles([ROLES.TRANSPORT_MANAGER], card, `${user.name} submitted a job card for your review.`);
+      } else {
+        notify.notifyRoles([ROLES.MECH_ENGINEER], card, `${user.name} submitted a service request for your approval.`);
+      }
       break;
     }
     case 'review':
