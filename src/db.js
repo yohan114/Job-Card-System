@@ -27,7 +27,18 @@ function emptyDb() {
     audits: [],
     notifications: [],
     outbox: [],
+    items: [],      // general item / parts catalog
+    mrns: [],       // material requisition notes
+    receipts: [],   // GRN lines (each belongs to an mrn)
   };
+}
+
+/** Ensure legacy db.json files gain the new collections without data loss. */
+function migrate(d) {
+  if (!d.items) d.items = [];
+  if (!d.mrns) d.mrns = [];
+  if (!d.receipts) d.receipts = [];
+  return d;
 }
 
 let data = emptyDb();
@@ -36,7 +47,7 @@ function load() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (fs.existsSync(DB_FILE)) {
     try {
-      data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+      data = migrate(JSON.parse(fs.readFileSync(DB_FILE, 'utf8')));
     } catch (err) {
       console.error('Could not parse db.json, starting fresh:', err.message);
       data = emptyDb();
@@ -102,6 +113,7 @@ function update(collection, id, patch) {
 }
 
 module.exports = {
+  migrate,
   DB_FILE,
   load,
   persist,

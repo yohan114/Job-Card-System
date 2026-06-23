@@ -4,3 +4,7 @@ data/db.json
 .DS_Store
 .env
 mail.config.json
+
+# Python bytecode
+__pycache__/
+*.pyc

@@ -71,6 +71,25 @@ const routes = [
   ['POST', '/admin/vehicles', c.addVehicle, { guard: requireRoles([R.ADMIN]) }],
   ['POST', '/admin/vendors', c.addVendor, { guard: requireRoles([R.ADMIN]) }],
   ['POST', '/admin/projects', c.addProject, { guard: requireRoles([R.ADMIN]) }],
+
+  // MRN / Parts
+  ['GET',  '/mrns',                  c.listMrns],
+  ['GET',  '/mrns/new',              c.newMrn],
+  ['POST', '/mrns',                  c.createMrn, { guard: requireRoles([R.TECHNICIAN, R.ADMIN]) }],
+  ['GET',  '/mrns/:id',              c.showMrn],
+  ['POST', '/mrns/:id/receive',      c.receiveMrn, { guard: requireRoles([R.TECHNICIAN, R.ADMIN]) }],
+  ['POST', '/mrns/:id/return',       c.returnMrn, { guard: requireRoles([R.TECHNICIAN, R.ADMIN]) }],
+  ['POST', '/mrns/:id/price/:rid',   c.priceMrnReceipt, { guard: requireRoles([R.TECHNICIAN, R.ADMIN]) }],
+
+  // Item catalog
+  ['GET',  '/items',                 c.listItems],
+  ['GET',  '/items/search',          c.itemsAutocomplete],
+  ['GET',  '/items/new',             c.newItem, { guard: requireRoles([R.TECHNICIAN, R.ADMIN]) }],
+  ['POST', '/items',                 c.createItem, { guard: requireRoles([R.TECHNICIAN, R.ADMIN]) }],
+
+  // Cost summary (must come before /costs/:jobNo so the literal path wins)
+  ['GET',  '/costs',                 c.costSummary, { guard: requireRoles([R.TRANSPORT_MANAGER, R.MECH_ENGINEER, R.OPERATIONAL_MANAGER, R.ADMIN]) }],
+  ['GET',  '/costs/:jobNo',          c.costDetail,  { guard: requireRoles([R.TRANSPORT_MANAGER, R.MECH_ENGINEER, R.OPERATIONAL_MANAGER, R.ADMIN]) }],
 ].map(([method, pattern, handler, opts = {}]) => ({ method, handler, opts, ...compile(pattern) }));
 
 // --- request body ----------------------------------------------------------
