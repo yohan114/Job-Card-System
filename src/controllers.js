@@ -9,6 +9,8 @@ const views = require('./views');
 const jobs = require('./jobcards');
 const notify = require('./notifications');
 const mailer = require('./mailer');
+const mrnSvc = require('./mrns');
+const itemSvc = require('./items');
 
 const { TYPES } = domain;
 
@@ -277,6 +279,127 @@ function addProject(ctx) {
   ctx.redirect('/admin');
 }
 
+// --- MRNs ------------------------------------------------------------------
+function listMrns(ctx) {
+  const filter = {
+    vehicle: ctx.query.vehicle || '',
+    category: ctx.query.category || '',
+    status: ctx.query.status || '',
+    jobNo: ctx.query.jobNo || '',
+    unpriced: ctx.query.unpriced || '',
+  };
+  let mrns = db.all('mrns');
+  if (filter.vehicle) mrns = mrns.filter((m) => (m.vehicleMachinery || '').toLowerCase().includes(filter.vehicle.toLowerCase()));
+  if (filter.category) mrns = mrns.filter((m) => m.category === filter.category);
+  if (filter.status) mrns = mrns.filter((m) => m.status === filter.status);
+  if (filter.jobNo) mrns = mrns.filter((m) => m.jobNo === filter.jobNo);
+  if (filter.unpriced === '1') mrns = mrns.filter((m) => m.hasUnpriced);
+  mrns = mrns.slice().sort((a, b) => (b.reqDate || '').localeCompare(a.reqDate || ''));
+  ctx.render('MRN / Parts', views.mrnList({ mrns, filter, categories: itemSvc.CATEGORIES }));
+}
+
+function newMrn(ctx) {
+  ctx.render('New MRN', views.mrnForm({
+    mode: 'new',
+    vehicles: db.all('vehicles'),
+    categories: itemSvc.CATEGORIES,
+    prefill: ctx.query,
+  }));
+}
+
+function createMrn(ctx) {
+  const mrn = mrnSvc.createMrn(ctx.body, ctx.user);
+  ctx.flash('success', 'MRN created.');
+  ctx.redirect(`/mrns/${mrn.id}`);
+}
+
+function showMrn(ctx) {
+  const raw = db.find('mrns', ctx.params.id);
+  if (!raw) return ctx.notFound();
+  const mrn = mrnSvc.enrichMrn(raw);
+  ctx.render(`MRN ${mrn.mrnNum || mrn.id}`, views.mrnDetail({ mrn }));
+}
+
+function receiveMrn(ctx) {
+  const mrn = db.find('mrns', ctx.params.id);
+  if (!mrn) return ctx.notFound();
+  mrnSvc.addReceipt(ctx.params.id, { ...ctx.body, transactionType: 'Receive' }, ctx.user);
+  ctx.flash('success', 'Receipt recorded.');
+  ctx.redirect(`/mrns/${ctx.params.id}`);
+}
+
+function returnMrn(ctx) {
+  const mrn = db.find('mrns', ctx.params.id);
+  if (!mrn) return ctx.notFound();
+  mrnSvc.addReceipt(ctx.params.id, { ...ctx.body, transactionType: 'Return' }, ctx.user);
+  ctx.flash('success', 'Return recorded.');
+  ctx.redirect(`/mrns/${ctx.params.id}`);
+}
+
+function priceMrnReceipt(ctx) {
+  const receipt = db.find('receipts', ctx.params.rid);
+  if (!receipt || receipt.mrnId !== ctx.params.id) return ctx.notFound();
+  const price = parseFloat(ctx.body.unitPrice);
+  if (isNaN(price) || price < 0) { ctx.flash('error', 'Enter a valid price.'); return ctx.redirect(`/mrns/${ctx.params.id}`); }
+  mrnSvc.updatePrice(ctx.params.rid, price, ctx.user);
+  ctx.flash('success', 'Price updated.');
+  ctx.redirect(`/mrns/${ctx.params.id}`);
+}
+
+// --- Items -----------------------------------------------------------------
+function listItems(ctx) {
+  const q = ctx.query.q || '';
+  const cat = ctx.query.category || '';
+  let items = itemSvc.allItems();
+  if (q) items = items.filter((i) => i.name.toLowerCase().includes(q.toLowerCase()));
+  if (cat) items = items.filter((i) => i.category === cat);
+  ctx.render('Item Catalog', views.itemList({ items, q, cat, categories: itemSvc.CATEGORIES }));
+}
+
+function newItem(ctx) {
+  ctx.render('New Item', views.itemForm({ categories: itemSvc.CATEGORIES }));
+}
+
+function createItem(ctx) {
+  const { item, error } = itemSvc.createItem(ctx.body, ctx.user);
+  if (error) { ctx.flash('error', error); return ctx.redirect('/items/new'); }
+  ctx.flash('success', `Item "${item.name}" added to catalog.`);
+  ctx.redirect('/items');
+}
+
+function itemsAutocomplete(ctx) {
+  const results = itemSvc.searchItems(ctx.query.q || '').map((i) => ({
+    id: i.id, name: i.name, category: i.category, unit: i.unit,
+  }));
+  ctx.res.setHeader('Content-Type', 'application/json');
+  ctx.res.end(JSON.stringify(results));
+}
+
+// --- Cost summary ----------------------------------------------------------
+function costSummary(ctx) {
+  // Group MRNs by jobNo and compute totals
+  const allMrns = db.all('mrns').filter((m) => m.jobNo);
+  const byJob = {};
+  for (const m of allMrns) {
+    if (!byJob[m.jobNo]) byJob[m.jobNo] = { jobNo: m.jobNo, mrns: [], partsCost: 0, unpricedLines: 0, mrnCount: 0 };
+    const receipts = db.where('receipts', (r) => r.mrnId === m.id);
+    const c = mrnSvc.mrnCost(receipts);
+    byJob[m.jobNo].partsCost += c.total;
+    byJob[m.jobNo].unpricedLines += c.unpricedLines;
+    byJob[m.jobNo].mrnCount++;
+  }
+  const rows = Object.values(byJob).sort((a, b) => b.partsCost - a.partsCost);
+  ctx.render('Cost Summary', views.costSummaryPage({ rows }));
+}
+
+function costDetail(ctx) {
+  const jobNo = decodeURIComponent(ctx.params.jobNo);
+  const mrns = db.where('mrns', (m) => m.jobNo === jobNo).map(mrnSvc.enrichMrn);
+  if (!mrns.length) return ctx.notFound();
+  const stats = mrnSvc.mrnStats(jobNo);
+  ctx.render(`Cost: ${jobNo}`, views.costDetailPage({ jobNo, mrns, stats }));
+}
+
 module.exports = {
   showLogin, login, logout,
   home,
@@ -287,4 +410,10 @@ module.exports = {
   reports,
   showChangePassword, changePassword,
   adminHome, addUser, resetPassword, addVehicle, addVendor, addProject,
+  // MRNs
+  listMrns, newMrn, createMrn, showMrn, receiveMrn, returnMrn, priceMrnReceipt,
+  // Items
+  listItems, newItem, createItem, itemsAutocomplete,
+  // Costs
+  costSummary, costDetail,
 };
